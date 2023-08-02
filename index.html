@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>OpenLayers with Collection Selection</title>
+    <style>
+        #map {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <input type="text" id="landingPageUrlInput" placeholder="Enter landing page URL">
+        <button onclick="loadCollections()">Load Collections</button>
+        <select id="collections" onchange="loadCollectionItems(this.value)">
+          <option disabled selected>Select a collection</option>
+        </select>
+        <input type="number" id="limitInput" placeholder="Limit" value="10">
+        <input type="number" id="offsetInput" placeholder="Offset" value="0">
+        <button onclick="loadCollectionItemsWithLimitOffset()">Load Items</button>
+    </div>
+    <div id="map"></div>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.5.0/css/ol.css" type="text/css"/>
+    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.5.0/build/ol.js"></script>
+      <script>
+        // Function to load collections and populate the drop-down menu
+        async function loadCollections() {
+            const landingPageUrlInput = document.getElementById('landingPageUrlInput');
+            const landingPageUrl = landingPageUrlInput.value;
+
+            const collectionsUrl = landingPageUrl + 'collections/';
+            const collectionsResponse = await fetch(collectionsUrl);
+            const collections = await collectionsResponse.json();
+
+            // Get the select element for collections
+            const selectCollections = document.getElementById('collections');
+
+            // Remove existing options
+            selectCollections.innerHTML = '';
+
+            // Populate the drop-down menu with collections
+            collections.collections.forEach(collection => {
+                const option = document.createElement('option');
+                option.value = collection.id;
+                option.textContent = collection.title;
+                selectCollections.appendChild(option);
+            });
+        }
+
+        // Function to load collection items based on the selected collection
+        async function loadCollectionItems(collectionId) {
+            const landingPageUrlInput = document.getElementById('landingPageUrlInput');
+            const landingPageUrl = landingPageUrlInput.value;
+
+            const itemsUrl = landingPageUrl + '/collections/' + collectionId + '/items';
+            const itemsResponse = await fetch(itemsUrl);
+            const items = await itemsResponse.json();
+
+            loadItemsToMap(items);
+        }
+
+        // Function to load collection items based on the selected collection with limit and offset
+        async function loadCollectionItemsWithLimitOffset() {
+            const landingPageUrlInput = document.getElementById('landingPageUrlInput');
+            const landingPageUrl = landingPageUrlInput.value;
+
+            const collectionId = document.getElementById('collections').value;
+            const limit = document.getElementById('limitInput').value;
+            const offset = document.getElementById('offsetInput').value;
+
+            const itemsUrl = landingPageUrl + '/collections/' + collectionId + '/items?limit=' + limit + '&offset=' + offset + '&f=json';
+            const itemsResponse = await fetch(itemsUrl);
+            const items = await itemsResponse.json();
+
+            loadItemsToMap(items);
+        }
+
+        // Function to load items to the map
+
+        function loadItemsToMap(items) {
+            // Remove existing vector layers from the map
+            map.getLayers().forEach(layer => {
+                if (layer instanceof ol.layer.Vector) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // Create a new vector source
+            const vectorSource = new ol.source.Vector({
+                features: new ol.format.GeoJSON().readFeatures(items, {
+                    featureProjection: 'EPSG:3857'
+                })
+            });
+
+            // Create a new vector layer with the vector source
+            const vectorLayer = new ol.layer.Vector({
+                source: vectorSource
+            });
+
+            // Add the vector layer to the map
+            map.addLayer(vectorLayer);
+        }
+
+        // Create the map
+        var map = new ol.Map({
+            view: new ol.View({
+                center: [915801.1809412361, 5909719.679087388],
+                zoom: 7
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                })
+            ],
+            target: 'map'
+        });
+    </script>
+</body>
+</html>
